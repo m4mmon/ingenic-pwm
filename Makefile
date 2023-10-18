@@ -1,11 +1,12 @@
-CROSS_COMPILE = /home/turismo/toolchain/mips-gcc472-glibc216-64bit-master/bin/mips-linux-uclibc-gnu-
+CROSS_COMPILE?= mipsel-openipc-linux-musl-
+
 CFLAGS = -static
 
-# Source file
-SRC = ingenic_pwm.c pwm.c
+# Source files
+SRC = ingenic_pwm.c
 
 # Output binary name
-OUT = ingenic-pwm
+OUT = ingenic_pwm
 
 all: $(OUT)
 
