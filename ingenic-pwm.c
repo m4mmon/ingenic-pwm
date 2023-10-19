@@ -58,20 +58,20 @@ void query_pwm_status(int fd, int channel) {
 }
 
 // Function to ramp up or down the PWM duty cycle based on provided parameters
-void ramp_pwm(int fd, int channel, int ramp_value, int max_duty, int min_duty) {
+void ramp_pwm(int fd, int channel, int ramp_value, int max_duty, int min_duty, int period_ns) {
     int duty;
+    struct pwm_ioctl_t pwm_data;
+    pwm_data.index = channel;
+    pwm_data.period = period_ns;  // Set the period
+
     if (ramp_value > 0) {  // Ramp up
         for (duty = min_duty; duty <= max_duty; duty += abs(ramp_value)) {
-            struct pwm_ioctl_t pwm_data;
-            pwm_data.index = channel;
             pwm_data.duty = duty;
             ioctl(fd, PWM_CONFIG_DUTY, &pwm_data);
             usleep(50000);  // Introduce a 50 ms delay between each change
         }
     } else if (ramp_value < 0) {  // Ramp down
         for (duty = max_duty; duty >= min_duty; duty -= abs(ramp_value)) {
-            struct pwm_ioctl_t pwm_data;
-            pwm_data.index = channel;
             pwm_data.duty = duty;
             ioctl(fd, PWM_CONFIG_DUTY, &pwm_data);
             usleep(50000);  // Introduce a 50 ms delay between each change
@@ -208,8 +208,14 @@ int main(int argc, char *argv[]) {
     }
 
     // Ramp the PWM duty cycle if the 'ramp_value' is not zero
-    if (ramp_value != 0) {
-        ramp_pwm(fd, channel, ramp_value, max_duty, min_duty);
+    if (ramp_value) {
+        if (period_ns != -1) {
+            ramp_pwm(fd, channel, ramp_value, max_duty, min_duty, period_ns);
+        } else {
+            printf("Error: A valid period must be specified for ramping.\n");
+            close(fd);
+            return -1;
+        }
     }
 
     // Close the PWM device file descriptor
