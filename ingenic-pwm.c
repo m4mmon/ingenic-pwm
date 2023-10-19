@@ -7,6 +7,7 @@
 #include <getopt.h>
 #include "version.h"
 
+// Constants defining the number of PWM channels and their respective IOCTL commands
 #define PWM_NUM          8
 #define PWM_QUERY_STATUS 0x200
 #define PWM_CONFIG       0x001
@@ -14,14 +15,16 @@
 #define PWM_ENABLE       0x010
 #define PWM_DISABLE      0x100
 
+// Structure representing the PWM configuration
 struct pwm_ioctl_t {
-    int index;
-    int duty;
-    int period;
-    int polarity;
-    int enabled;
+    int index;     // PWM channel index
+    int duty;      // PWM duty cycle in nanoseconds
+    int period;    // PWM period in nanoseconds
+    int polarity;  // PWM polarity (0: Inversed, 1: Normal)
+    int enabled;   // Flag indicating if PWM is enabled or not
 };
 
+// Function to display the usage information for the program
 void print_usage(const char *prog_name) {
     printf("INGENIC PWM Control Version: %s\n", VERSION);
     printf("Usage: %s [options]\n\n", prog_name);
@@ -42,6 +45,7 @@ void print_usage(const char *prog_name) {
     printf("  -h, --help                     Display this help message\n");
 }
 
+// Function to query and display the current status of a given PWM channel
 void query_pwm_status(int fd, int channel) {
     struct pwm_ioctl_t pwm_status;
     pwm_status.index = channel;
@@ -56,6 +60,7 @@ void query_pwm_status(int fd, int channel) {
     }
 }
 
+// Function to ramp up or down the PWM duty cycle based on provided parameters
 void ramp_pwm(int fd, int channel, int increment, int decrement, int max_duty, int min_duty, int ramp_up) {
     int duty;
     if (ramp_up) {
@@ -64,7 +69,7 @@ void ramp_pwm(int fd, int channel, int increment, int decrement, int max_duty, i
             pwm_data.index = channel;
             pwm_data.duty = duty;
             ioctl(fd, PWM_CONFIG_DUTY, &pwm_data);
-            usleep(50000);  // 50 ms delay, can be adjusted
+            usleep(50000);  // Introduce a 50 ms delay between each change
         }
     } else {
         for (duty = max_duty; duty >= min_duty; duty -= decrement) {
@@ -72,12 +77,13 @@ void ramp_pwm(int fd, int channel, int increment, int decrement, int max_duty, i
             pwm_data.index = channel;
             pwm_data.duty = duty;
             ioctl(fd, PWM_CONFIG_DUTY, &pwm_data);
-            usleep(50000);  // 50 ms delay, can be adjusted
+            usleep(50000);  // Introduce a 50 ms delay between each change
         }
     }
 }
 
 int main(int argc, char *argv[]) {
+    // Initialize default values for the variables representing command-line options
     int channel = -1;
     int polarity = -1;
     int duty_ns = -1;
@@ -92,6 +98,7 @@ int main(int argc, char *argv[]) {
     int max_duty = -1;
     int min_duty = -1;
 
+    // Define the long-format options for the command-line arguments
     struct option long_options[] = {
         {"channel", required_argument, NULL, 'c'},
         {"query", no_argument, NULL, 'q'},
@@ -110,11 +117,13 @@ int main(int argc, char *argv[]) {
         {NULL, 0, NULL, 0}
     };
 
+    // Display usage information if no arguments are provided
     if (argc == 1) {
         print_usage(argv[0]);
         return 0;
     }
 
+    // Parse the command-line arguments
     int opt;
     while ((opt = getopt_long(argc, argv, "c:qedp:D:P:uw:i:m:x:n:h", long_options, NULL)) != -1) {
         switch (opt) {
@@ -166,55 +175,67 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Validate the provided PWM channel number
     if (channel < 0 || channel >= PWM_NUM) {
         printf("Error: Invalid PWM channel number.\n");
         return -1;
     }
 
+    // Open the PWM device for reading and writing
     int fd = open("/dev/pwm", O_RDWR);
     if (fd < 0) {
         perror("Error opening /dev/pwm, make sure pwm drivers are enabled");
         return -1;
     }
 
+    // Structure to hold the PWM configuration for the ioctl calls
     struct pwm_ioctl_t pwm_data;
     pwm_data.index = channel;
 
+    // Set the PWM polarity if provided
     if (polarity != -1) {
         pwm_data.polarity = polarity;
         ioctl(fd, PWM_CONFIG, &pwm_data);
     }
 
+    // Set the PWM duty cycle if provided
     if (duty_ns != -1) {
         pwm_data.duty = duty_ns;
         ioctl(fd, PWM_CONFIG_DUTY, &pwm_data);
     }
 
+    // Set the PWM period if provided
     if (period_ns != -1) {
         pwm_data.period = period_ns;
         ioctl(fd, PWM_CONFIG, &pwm_data);
     }
 
+    // Enable the PWM channel if the 'enable' flag is set
     if (enable) {
         ioctl(fd, PWM_ENABLE, channel);
     }
 
+    // Disable the PWM channel if the 'disable' flag is set
     if (disable) {
         ioctl(fd, PWM_DISABLE, channel);
     }
 
+    // Query the PWM status if the 'query' flag is set
     if (query) {
         query_pwm_status(fd, channel);
     }
 
+    // Ramp up the PWM duty cycle if the 'ramp_up' flag is set
     if (ramp_up) {
         ramp_pwm(fd, channel, increment, decrement, max_duty, min_duty, 1);
     }
 
+    // Ramp down the PWM duty cycle if the 'ramp_down' flag is set
     if (ramp_down) {
         ramp_pwm(fd, channel, increment, decrement, max_duty, min_duty, 0);
     }
 
+    // Close the PWM device file descriptor
     close(fd);
     return 0;
 }
