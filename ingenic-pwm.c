@@ -171,12 +171,12 @@ int main(int argc, char *argv[]) {
     }
 
     // Structure to hold the PWM configuration for the ioctl calls
-    struct pwm_ioctl_t pwm_data;
+    struct pwm_ioctl_t pwm_data = {0};  // Initialize to zero
     pwm_data.index = channel;
 
-    // Set the PWM polarity if provided
-    if (polarity != -1) {
-        pwm_data.polarity = polarity;
+    // Set the PWM period if provided
+    if (period_ns != -1) {
+        pwm_data.period = period_ns;
         ioctl(fd, PWM_CONFIG, &pwm_data);
     }
 
@@ -186,9 +186,9 @@ int main(int argc, char *argv[]) {
         ioctl(fd, PWM_CONFIG_DUTY, &pwm_data);
     }
 
-    // Set the PWM period if provided
-    if (period_ns != -1) {
-        pwm_data.period = period_ns;
+    // Set the PWM polarity if provided
+    if (polarity != -1) {
+        pwm_data.polarity = polarity;
         ioctl(fd, PWM_CONFIG, &pwm_data);
     }
 

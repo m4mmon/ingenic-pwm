@@ -1,2 +1,4 @@
 ingenic_pwm
+ingenic-pwm
+version.h
 *.o
