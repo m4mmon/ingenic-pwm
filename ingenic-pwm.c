@@ -36,10 +36,7 @@ void print_usage(const char *prog_name) {
     printf("  -p, --polarity=<0|1>           Set polarity (0: Inversed, 1: Normal)\n");
     printf("  -D, --duty=<duty_ns>           Set duty cycle in ns\n");
     printf("  -P, --period=<period_ns>       Set period in ns\n");
-    printf("  -u, --ramp_up                  Ramp up PWM\n");
-    printf("  -w, --ramp_down                Ramp down PWM\n");
-    printf("  -i, --increment=<value>        Set increment for ramp up\n");
-    printf("  -m, --decrement=<value>        Set decrement for ramp down\n");
+    printf("  -r, --ramp=<value>             Ramp PWM (+value: Ramp up, -value: Ramp down)\n");
     printf("  -x, --max_duty=<max_duty_ns>   Set max duty for ramping\n");
     printf("  -n, --min_duty=<min_duty_ns>   Set min duty for ramping\n");
     printf("  -h, --help                     Display this help message\n");
@@ -61,18 +58,18 @@ void query_pwm_status(int fd, int channel) {
 }
 
 // Function to ramp up or down the PWM duty cycle based on provided parameters
-void ramp_pwm(int fd, int channel, int increment, int decrement, int max_duty, int min_duty, int ramp_up) {
+void ramp_pwm(int fd, int channel, int ramp_value, int max_duty, int min_duty) {
     int duty;
-    if (ramp_up) {
-        for (duty = min_duty; duty <= max_duty; duty += increment) {
+    if (ramp_value > 0) {  // Ramp up
+        for (duty = min_duty; duty <= max_duty; duty += abs(ramp_value)) {
             struct pwm_ioctl_t pwm_data;
             pwm_data.index = channel;
             pwm_data.duty = duty;
             ioctl(fd, PWM_CONFIG_DUTY, &pwm_data);
             usleep(50000);  // Introduce a 50 ms delay between each change
         }
-    } else {
-        for (duty = max_duty; duty >= min_duty; duty -= decrement) {
+    } else if (ramp_value < 0) {  // Ramp down
+        for (duty = max_duty; duty >= min_duty; duty -= abs(ramp_value)) {
             struct pwm_ioctl_t pwm_data;
             pwm_data.index = channel;
             pwm_data.duty = duty;
@@ -91,10 +88,7 @@ int main(int argc, char *argv[]) {
     int enable = 0;
     int disable = 0;
     int query = 0;
-    int ramp_up = 0;
-    int ramp_down = 0;
-    int increment = -1;
-    int decrement = -1;
+    int ramp_value = 0;  // 0 means no ramping. Positive means ramp up, negative means ramp down.
     int max_duty = -1;
     int min_duty = -1;
 
@@ -107,10 +101,7 @@ int main(int argc, char *argv[]) {
         {"polarity", required_argument, NULL, 'p'},
         {"duty", required_argument, NULL, 'D'},
         {"period", required_argument, NULL, 'P'},
-        {"ramp_up", no_argument, NULL, 'u'},
-        {"ramp_down", no_argument, NULL, 'w'},
-        {"increment", required_argument, NULL, 'i'},
-        {"decrement", required_argument, NULL, 'm'},
+        {"ramp", required_argument, NULL, 'r'},
         {"max_duty", required_argument, NULL, 'x'},
         {"min_duty", required_argument, NULL, 'n'},
         {"help", no_argument, NULL, 'h'},
@@ -125,7 +116,7 @@ int main(int argc, char *argv[]) {
 
     // Parse the command-line arguments
     int opt;
-    while ((opt = getopt_long(argc, argv, "c:qedp:D:P:uw:i:m:x:n:h", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:qedp:D:P:r:x:n:h", long_options, NULL)) != -1) {
         switch (opt) {
             case 'c':
                 channel = atoi(optarg);
@@ -148,17 +139,8 @@ int main(int argc, char *argv[]) {
             case 'P':
                 period_ns = atoi(optarg);
                 break;
-            case 'u':
-                ramp_up = 1;
-                break;
-            case 'w':
-                ramp_down = 1;
-                break;
-            case 'i':
-                increment = atoi(optarg);
-                break;
-            case 'm':
-                decrement = atoi(optarg);
+            case 'r':
+                ramp_value = atoi(optarg);
                 break;
             case 'x':
                 max_duty = atoi(optarg);
@@ -225,14 +207,9 @@ int main(int argc, char *argv[]) {
         query_pwm_status(fd, channel);
     }
 
-    // Ramp up the PWM duty cycle if the 'ramp_up' flag is set
-    if (ramp_up) {
-        ramp_pwm(fd, channel, increment, decrement, max_duty, min_duty, 1);
-    }
-
-    // Ramp down the PWM duty cycle if the 'ramp_down' flag is set
-    if (ramp_down) {
-        ramp_pwm(fd, channel, increment, decrement, max_duty, min_duty, 0);
+    // Ramp the PWM duty cycle if the 'ramp_value' is not zero
+    if (ramp_value != 0) {
+        ramp_pwm(fd, channel, ramp_value, max_duty, min_duty);
     }
 
     // Close the PWM device file descriptor
