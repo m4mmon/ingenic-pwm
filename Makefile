@@ -5,7 +5,7 @@
 
 # Compiler settings
 CC := $(CROSS_COMPILE)gcc
-CFLAGS := -fPIC -std=gnu99 -ldl -lm -pthread -Os -ffunction-sections -fdata-sections -fomit-frame-pointer
+CFLAGS := -fPIC -std=gnu99 -ldl -lm -pthread -Os -ffunction-sections -fdata-sections -fomit-frame-pointer -ggdb
 LDFLAGS := -Wl,--gc-sections
 
 # Source files
